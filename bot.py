@@ -38,17 +38,29 @@ async def callback(update, context):
     data = q.data
     user_id = update.effective_user.id
 
-    # ==================== عرض المواد حسب الصف ====================
-    if data == "back_to_start":
+    # ==================== رجوع للرئيسية ====================
+    if data == "main_menu":
         await start(update, context)
         return
 
+    # ==================== رجوع من المواد إلى الصفوف ====================
+    if data.startswith("back_to_grade_"):
+        grade = data[13:]
+        keyboard = [
+            [InlineKeyboardButton("📘 فيزياء", callback_data=f"sub_{grade}_فيزياء")],
+            [InlineKeyboardButton("🧪 كيمياء", callback_data=f"sub_{grade}_كيمياء")],
+            [InlineKeyboardButton("🔙 رجوع للرئيسية", callback_data="main_menu")],
+        ]
+        await q.edit_message_text(f"🎓 {grade}\nاختر المادة:", reply_markup=InlineKeyboardMarkup(keyboard))
+        return
+
+    # ==================== عرض المواد حسب الصف ====================
     if data.startswith("grade_"):
         grade = data[6:]
         keyboard = [
             [InlineKeyboardButton("📘 فيزياء", callback_data=f"sub_{grade}_فيزياء")],
             [InlineKeyboardButton("🧪 كيمياء", callback_data=f"sub_{grade}_كيمياء")],
-            [InlineKeyboardButton("🔙 رجوع", callback_data="back_to_start")],
+            [InlineKeyboardButton("🔙 رجوع للرئيسية", callback_data="main_menu")],
         ]
         await q.edit_message_text(f"🎓 {grade}\nاختر المادة:", reply_markup=InlineKeyboardMarkup(keyboard))
 
@@ -59,13 +71,13 @@ async def callback(update, context):
         subject = parts[2]
         subject_lessons = lessons.get(grade, {}).get(subject, {})
         if not subject_lessons:
-            keyboard = [[InlineKeyboardButton("🔙 رجوع", callback_data=f"grade_{grade}")]]
+            keyboard = [[InlineKeyboardButton("🔙 رجوع للمواد", callback_data=f"back_to_grade_{grade}")]]
             await q.edit_message_text(f"📭 لا يوجد دروس في {subject} - {grade}", reply_markup=InlineKeyboardMarkup(keyboard))
         else:
             keyboard = []
             for name in subject_lessons:
                 keyboard.append([InlineKeyboardButton(f"📄 {name}", callback_data=f"view_{grade}_{subject}_{name}")])
-            keyboard.append([InlineKeyboardButton("🔙 رجوع", callback_data=f"grade_{grade}")])
+            keyboard.append([InlineKeyboardButton("🔙 رجوع للمواد", callback_data=f"back_to_grade_{grade}")])
             await q.edit_message_text(f"📚 {subject} - {grade}\nاختر الدرس:", reply_markup=InlineKeyboardMarkup(keyboard))
 
     # ==================== عرض ملف PDF ====================
@@ -87,7 +99,7 @@ async def callback(update, context):
             [InlineKeyboardButton("➕ إضافة درس", callback_data="add")],
             [InlineKeyboardButton("🗑 حذف درس", callback_data="del")],
             [InlineKeyboardButton("📊 إحصائيات", callback_data="stats")],
-            [InlineKeyboardButton("🔙 رجوع", callback_data="back_to_start")],
+            [InlineKeyboardButton("🔙 رجوع للرئيسية", callback_data="main_menu")],
         ]
         await q.edit_message_text("⚙️ لوحة التحكم", reply_markup=InlineKeyboardMarkup(keyboard))
 
@@ -98,7 +110,7 @@ async def callback(update, context):
             [InlineKeyboardButton("التاسع - كيمياء", callback_data="addplace_التاسع_كيمياء")],
             [InlineKeyboardButton("البكالوريا - فيزياء", callback_data="addplace_البكالوريا_فيزياء")],
             [InlineKeyboardButton("البكالوريا - كيمياء", callback_data="addplace_البكالوريا_كيمياء")],
-            [InlineKeyboardButton("🔙 رجوع", callback_data="admin")],
+            [InlineKeyboardButton("🔙 رجوع للإدارة", callback_data="admin")],
         ]
         await q.edit_message_text("📤 اختر مكان حفظ الدرس:", reply_markup=InlineKeyboardMarkup(keyboard))
 
@@ -118,7 +130,7 @@ async def callback(update, context):
             [InlineKeyboardButton("التاسع - كيمياء", callback_data="dellist_التاسع_كيمياء")],
             [InlineKeyboardButton("البكالوريا - فيزياء", callback_data="dellist_البكالوريا_فيزياء")],
             [InlineKeyboardButton("البكالوريا - كيمياء", callback_data="dellist_البكالوريا_كيمياء")],
-            [InlineKeyboardButton("🔙 رجوع", callback_data="admin")],
+            [InlineKeyboardButton("🔙 رجوع للإدارة", callback_data="admin")],
         ]
         await q.edit_message_text("🗑 اختر الصف والمادة:", reply_markup=InlineKeyboardMarkup(keyboard))
 
@@ -128,13 +140,13 @@ async def callback(update, context):
         subject = parts[2]
         subject_lessons = lessons.get(grade, {}).get(subject, {})
         if not subject_lessons:
-            keyboard = [[InlineKeyboardButton("🔙 رجوع", callback_data="admin")]]
+            keyboard = [[InlineKeyboardButton("🔙 رجوع للإدارة", callback_data="admin")]]
             await q.edit_message_text(f"📭 لا يوجد دروس في {grade} - {subject}", reply_markup=InlineKeyboardMarkup(keyboard))
         else:
             keyboard = []
             for name in subject_lessons:
                 keyboard.append([InlineKeyboardButton(f"🗑 {name}", callback_data=f"delete_{grade}_{subject}_{name}")])
-            keyboard.append([InlineKeyboardButton("🔙 رجوع", callback_data="admin")])
+            keyboard.append([InlineKeyboardButton("🔙 رجوع للإدارة", callback_data="admin")])
             await q.edit_message_text(f"🗑 اختر درساً للحذف:\n{grade} - {subject}", reply_markup=InlineKeyboardMarkup(keyboard))
 
     elif data.startswith("delete_") and user_id == ADMIN_ID:
@@ -160,7 +172,6 @@ async def callback(update, context):
         text = f"📊 الإحصائيات\n\nالتاسع - فيزياء: {t1}\nالتاسع - كيمياء: {t2}\nالبكالوريا - فيزياء: {b1}\nالبكالوريا - كيمياء: {b2}\n\nالمجموع: {total}"
         await q.edit_message_text(text)
 
-# ==================== استقبال الملفات ====================
 async def handle_file(update, context):
     if context.user_data.get("waiting_file"):
         doc = update.message.document
@@ -188,12 +199,11 @@ async def handle_text(update, context):
             await update.message.reply_text(f"✅ تم حفظ الدرس: {name}\n📚 {subject} - {grade}")
             context.user_data.clear()
 
-# ==================== تشغيل البوت ====================
 app = Application.builder().token(TOKEN).build()
 app.add_handler(CommandHandler("start", start))
 app.add_handler(CallbackQueryHandler(callback))
 app.add_handler(MessageHandler(filters.Document.ALL, handle_file))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
 
-print("✅ البوت يعمل بنجاح مع زر رجوع")
+print("✅ البوت يعمل بنجاح")
 app.run_polling()
