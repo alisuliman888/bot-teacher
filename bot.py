@@ -21,7 +21,8 @@ def save_lessons():
     with open("lessons.json", "w") as f:
         json.dump(lessons, f)
 
-async def start(update, context):
+# ========== القائمة الرئيسية ==========
+async def main_menu(update, context, message=None):
     user_id = update.effective_user.id
     text = "📘 الفيزياء والكيمياء - سوريا\n👨‍🏫 الأستاذ: علي سليمان\n\n🌟 أهلاً بك في البوت التعليمي\n\nاختر صفك:"
     keyboard = [
@@ -30,7 +31,14 @@ async def start(update, context):
     ]
     if user_id == ADMIN_ID:
         keyboard.append([InlineKeyboardButton("⚙️ إدارة", callback_data="admin")])
-    await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
+    
+    if message:
+        await message.edit_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
+    else:
+        await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
+
+async def start(update, context):
+    await main_menu(update, context)
 
 async def callback(update, context):
     q = update.callback_query
@@ -38,20 +46,20 @@ async def callback(update, context):
     data = q.data
     user_id = update.effective_user.id
 
-    # ========== الرجوع للقائمة الرئيسية ==========
+    # ========== رجوع للرئيسية ==========
     if data == "main_menu":
-        await start(update, context)
+        await main_menu(update, context, q.message)
         return
 
-    # ========== اختيار صف ==========
+    # ========== عرض المواد ==========
     if data.startswith("grade_"):
         grade = data[6:]
         keyboard = [
-            [InlineKeyboardButton("فيزياء", callback_data=f"sub_{grade}_فيزياء")],
-            [InlineKeyboardButton("كيمياء", callback_data=f"sub_{grade}_كيمياء")],
-            [InlineKeyboardButton("🔙 رجوع", callback_data="main_menu")]
+            [InlineKeyboardButton("📘 فيزياء", callback_data=f"sub_{grade}_فيزياء")],
+            [InlineKeyboardButton("🧪 كيمياء", callback_data=f"sub_{grade}_كيمياء")],
+            [InlineKeyboardButton("🏠 الرئيسية", callback_data="main_menu")]
         ]
-        await q.edit_message_text(f"{grade}\nاختر المادة:", reply_markup=InlineKeyboardMarkup(keyboard))
+        await q.edit_message_text(f"🎓 {grade}\nاختر المادة:", reply_markup=InlineKeyboardMarkup(keyboard))
         return
 
     # ========== عرض الدروس ==========
@@ -60,14 +68,16 @@ async def callback(update, context):
         grade = parts[1]
         subject = parts[2]
         subject_lessons = lessons.get(grade, {}).get(subject, {})
+        
         keyboard = []
         for name in subject_lessons:
             keyboard.append([InlineKeyboardButton(f"📄 {name}", callback_data=f"view_{grade}_{subject}_{name}")])
         keyboard.append([InlineKeyboardButton("🔙 رجوع", callback_data=f"grade_{grade}")])
+        
         if not subject_lessons:
-            await q.edit_message_text(f"لا يوجد دروس في {subject} - {grade}", reply_markup=InlineKeyboardMarkup(keyboard))
+            await q.edit_message_text(f"📭 لا يوجد دروس في {subject} - {grade}", reply_markup=InlineKeyboardMarkup(keyboard))
         else:
-            await q.edit_message_text(f"{subject} - {grade}\nاختر الدرس:", reply_markup=InlineKeyboardMarkup(keyboard))
+            await q.edit_message_text(f"📚 {subject} - {grade}\nاختر الدرس:", reply_markup=InlineKeyboardMarkup(keyboard))
         return
 
     # ========== عرض الملف ==========
@@ -79,7 +89,7 @@ async def callback(update, context):
         path = lessons.get(grade, {}).get(subject, {}).get(name)
         if path and os.path.exists(path):
             with open(path, "rb") as f:
-                await q.message.reply_document(f, caption=f"📄 {name}\n📚 {subject} - {grade}")
+                await q.message.reply_document(f, caption=f"📄 {name}\n📚 {subject} - {grade}\n👨‍🏫 علي سليمان")
         else:
             await q.edit_message_text("❌ الملف غير موجود")
         return
@@ -90,7 +100,7 @@ async def callback(update, context):
             [InlineKeyboardButton("➕ إضافة درس", callback_data="add")],
             [InlineKeyboardButton("🗑 حذف درس", callback_data="del")],
             [InlineKeyboardButton("📊 إحصائيات", callback_data="stats")],
-            [InlineKeyboardButton("🔙 رجوع", callback_data="main_menu")]
+            [InlineKeyboardButton("🏠 الرئيسية", callback_data="main_menu")]
         ]
         await q.edit_message_text("⚙️ لوحة التحكم", reply_markup=InlineKeyboardMarkup(keyboard))
         return
@@ -104,7 +114,7 @@ async def callback(update, context):
             [InlineKeyboardButton("البكالوريا - كيمياء", callback_data="add_البكالوريا_كيمياء")],
             [InlineKeyboardButton("🔙 رجوع", callback_data="admin")]
         ]
-        await q.edit_message_text("اختر مكان حفظ الدرس:", reply_markup=InlineKeyboardMarkup(keyboard))
+        await q.edit_message_text("📤 اختر مكان حفظ الدرس:", reply_markup=InlineKeyboardMarkup(keyboard))
         return
 
     if data.startswith("add_") and user_id == ADMIN_ID:
@@ -113,7 +123,7 @@ async def callback(update, context):
         subject = parts[2]
         context.user_data["add_grade"] = grade
         context.user_data["add_subject"] = subject
-        await q.edit_message_text(f"أرسل ملف PDF لـ:\n{grade} - {subject}")
+        await q.edit_message_text(f"📤 أرسل ملف PDF لـ:\n{grade} - {subject}")
         context.user_data["waiting_file"] = True
         return
 
@@ -126,7 +136,7 @@ async def callback(update, context):
             [InlineKeyboardButton("البكالوريا - كيمياء", callback_data="del_البكالوريا_كيمياء")],
             [InlineKeyboardButton("🔙 رجوع", callback_data="admin")]
         ]
-        await q.edit_message_text("اختر الصف والمادة:", reply_markup=InlineKeyboardMarkup(keyboard))
+        await q.edit_message_text("🗑 اختر الصف والمادة:", reply_markup=InlineKeyboardMarkup(keyboard))
         return
 
     if data.startswith("del_") and user_id == ADMIN_ID:
@@ -139,9 +149,9 @@ async def callback(update, context):
             keyboard.append([InlineKeyboardButton(f"🗑 {name}", callback_data=f"delete_{grade}_{subject}_{name}")])
         keyboard.append([InlineKeyboardButton("🔙 رجوع", callback_data="admin")])
         if not subject_lessons:
-            await q.edit_message_text(f"لا يوجد دروس في {grade} - {subject}", reply_markup=InlineKeyboardMarkup(keyboard))
+            await q.edit_message_text(f"📭 لا يوجد دروس في {grade} - {subject}", reply_markup=InlineKeyboardMarkup(keyboard))
         else:
-            await q.edit_message_text(f"اختر درساً للحذف:\n{grade} - {subject}", reply_markup=InlineKeyboardMarkup(keyboard))
+            await q.edit_message_text(f"🗑 اختر درساً للحذف:\n{grade} - {subject}", reply_markup=InlineKeyboardMarkup(keyboard))
         return
 
     if data.startswith("delete_") and user_id == ADMIN_ID:
