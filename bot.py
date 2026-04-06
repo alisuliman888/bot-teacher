@@ -38,50 +38,40 @@ async def callback(update, context):
     data = q.data
     user_id = update.effective_user.id
 
-    # ==================== رجوع للرئيسية ====================
+    # ========== الرجوع للقائمة الرئيسية ==========
     if data == "main_menu":
         await start(update, context)
         return
 
-    # ==================== رجوع من المواد إلى الصفوف ====================
-    if data.startswith("back_to_grade_"):
-        grade = data[13:]
-        keyboard = [
-            [InlineKeyboardButton("📘 فيزياء", callback_data=f"sub_{grade}_فيزياء")],
-            [InlineKeyboardButton("🧪 كيمياء", callback_data=f"sub_{grade}_كيمياء")],
-            [InlineKeyboardButton("🔙 رجوع للرئيسية", callback_data="main_menu")],
-        ]
-        await q.edit_message_text(f"🎓 {grade}\nاختر المادة:", reply_markup=InlineKeyboardMarkup(keyboard))
-        return
-
-    # ==================== عرض المواد حسب الصف ====================
+    # ========== اختيار صف ==========
     if data.startswith("grade_"):
         grade = data[6:]
         keyboard = [
-            [InlineKeyboardButton("📘 فيزياء", callback_data=f"sub_{grade}_فيزياء")],
-            [InlineKeyboardButton("🧪 كيمياء", callback_data=f"sub_{grade}_كيمياء")],
-            [InlineKeyboardButton("🔙 رجوع للرئيسية", callback_data="main_menu")],
+            [InlineKeyboardButton("فيزياء", callback_data=f"sub_{grade}_فيزياء")],
+            [InlineKeyboardButton("كيمياء", callback_data=f"sub_{grade}_كيمياء")],
+            [InlineKeyboardButton("🔙 رجوع", callback_data="main_menu")]
         ]
-        await q.edit_message_text(f"🎓 {grade}\nاختر المادة:", reply_markup=InlineKeyboardMarkup(keyboard))
+        await q.edit_message_text(f"{grade}\nاختر المادة:", reply_markup=InlineKeyboardMarkup(keyboard))
+        return
 
-    # ==================== عرض دروس المادة ====================
-    elif data.startswith("sub_"):
+    # ========== عرض الدروس ==========
+    if data.startswith("sub_"):
         parts = data.split("_")
         grade = parts[1]
         subject = parts[2]
         subject_lessons = lessons.get(grade, {}).get(subject, {})
+        keyboard = []
+        for name in subject_lessons:
+            keyboard.append([InlineKeyboardButton(f"📄 {name}", callback_data=f"view_{grade}_{subject}_{name}")])
+        keyboard.append([InlineKeyboardButton("🔙 رجوع", callback_data=f"grade_{grade}")])
         if not subject_lessons:
-            keyboard = [[InlineKeyboardButton("🔙 رجوع للمواد", callback_data=f"back_to_grade_{grade}")]]
-            await q.edit_message_text(f"📭 لا يوجد دروس في {subject} - {grade}", reply_markup=InlineKeyboardMarkup(keyboard))
+            await q.edit_message_text(f"لا يوجد دروس في {subject} - {grade}", reply_markup=InlineKeyboardMarkup(keyboard))
         else:
-            keyboard = []
-            for name in subject_lessons:
-                keyboard.append([InlineKeyboardButton(f"📄 {name}", callback_data=f"view_{grade}_{subject}_{name}")])
-            keyboard.append([InlineKeyboardButton("🔙 رجوع للمواد", callback_data=f"back_to_grade_{grade}")])
-            await q.edit_message_text(f"📚 {subject} - {grade}\nاختر الدرس:", reply_markup=InlineKeyboardMarkup(keyboard))
+            await q.edit_message_text(f"{subject} - {grade}\nاختر الدرس:", reply_markup=InlineKeyboardMarkup(keyboard))
+        return
 
-    # ==================== عرض ملف PDF ====================
-    elif data.startswith("view_"):
+    # ========== عرض الملف ==========
+    if data.startswith("view_"):
         parts = data.split("_", 3)
         grade = parts[1]
         subject = parts[2]
@@ -89,67 +79,72 @@ async def callback(update, context):
         path = lessons.get(grade, {}).get(subject, {}).get(name)
         if path and os.path.exists(path):
             with open(path, "rb") as f:
-                await q.message.reply_document(f, caption=f"📄 {name}\n📚 {subject} - {grade}\n👨‍🏫 علي سليمان")
+                await q.message.reply_document(f, caption=f"📄 {name}\n📚 {subject} - {grade}")
         else:
             await q.edit_message_text("❌ الملف غير موجود")
+        return
 
-    # ==================== لوحة الإدارة ====================
-    elif data == "admin" and user_id == ADMIN_ID:
+    # ========== لوحة الإدارة ==========
+    if data == "admin" and user_id == ADMIN_ID:
         keyboard = [
             [InlineKeyboardButton("➕ إضافة درس", callback_data="add")],
             [InlineKeyboardButton("🗑 حذف درس", callback_data="del")],
             [InlineKeyboardButton("📊 إحصائيات", callback_data="stats")],
-            [InlineKeyboardButton("🔙 رجوع للرئيسية", callback_data="main_menu")],
+            [InlineKeyboardButton("🔙 رجوع", callback_data="main_menu")]
         ]
         await q.edit_message_text("⚙️ لوحة التحكم", reply_markup=InlineKeyboardMarkup(keyboard))
+        return
 
-    # ==================== إضافة درس ====================
-    elif data == "add" and user_id == ADMIN_ID:
+    # ========== إضافة درس ==========
+    if data == "add" and user_id == ADMIN_ID:
         keyboard = [
-            [InlineKeyboardButton("التاسع - فيزياء", callback_data="addplace_التاسع_فيزياء")],
-            [InlineKeyboardButton("التاسع - كيمياء", callback_data="addplace_التاسع_كيمياء")],
-            [InlineKeyboardButton("البكالوريا - فيزياء", callback_data="addplace_البكالوريا_فيزياء")],
-            [InlineKeyboardButton("البكالوريا - كيمياء", callback_data="addplace_البكالوريا_كيمياء")],
-            [InlineKeyboardButton("🔙 رجوع للإدارة", callback_data="admin")],
+            [InlineKeyboardButton("التاسع - فيزياء", callback_data="add_التاسع_فيزياء")],
+            [InlineKeyboardButton("التاسع - كيمياء", callback_data="add_التاسع_كيمياء")],
+            [InlineKeyboardButton("البكالوريا - فيزياء", callback_data="add_البكالوريا_فيزياء")],
+            [InlineKeyboardButton("البكالوريا - كيمياء", callback_data="add_البكالوريا_كيمياء")],
+            [InlineKeyboardButton("🔙 رجوع", callback_data="admin")]
         ]
-        await q.edit_message_text("📤 اختر مكان حفظ الدرس:", reply_markup=InlineKeyboardMarkup(keyboard))
+        await q.edit_message_text("اختر مكان حفظ الدرس:", reply_markup=InlineKeyboardMarkup(keyboard))
+        return
 
-    elif data.startswith("addplace_") and user_id == ADMIN_ID:
+    if data.startswith("add_") and user_id == ADMIN_ID:
         parts = data.split("_")
         grade = parts[1]
         subject = parts[2]
         context.user_data["add_grade"] = grade
         context.user_data["add_subject"] = subject
-        await q.edit_message_text(f"📤 أرسل ملف PDF لـ:\n{grade} - {subject}")
+        await q.edit_message_text(f"أرسل ملف PDF لـ:\n{grade} - {subject}")
         context.user_data["waiting_file"] = True
+        return
 
-    # ==================== حذف درس ====================
-    elif data == "del" and user_id == ADMIN_ID:
+    # ========== حذف درس ==========
+    if data == "del" and user_id == ADMIN_ID:
         keyboard = [
-            [InlineKeyboardButton("التاسع - فيزياء", callback_data="dellist_التاسع_فيزياء")],
-            [InlineKeyboardButton("التاسع - كيمياء", callback_data="dellist_التاسع_كيمياء")],
-            [InlineKeyboardButton("البكالوريا - فيزياء", callback_data="dellist_البكالوريا_فيزياء")],
-            [InlineKeyboardButton("البكالوريا - كيمياء", callback_data="dellist_البكالوريا_كيمياء")],
-            [InlineKeyboardButton("🔙 رجوع للإدارة", callback_data="admin")],
+            [InlineKeyboardButton("التاسع - فيزياء", callback_data="del_التاسع_فيزياء")],
+            [InlineKeyboardButton("التاسع - كيمياء", callback_data="del_التاسع_كيمياء")],
+            [InlineKeyboardButton("البكالوريا - فيزياء", callback_data="del_البكالوريا_فيزياء")],
+            [InlineKeyboardButton("البكالوريا - كيمياء", callback_data="del_البكالوريا_كيمياء")],
+            [InlineKeyboardButton("🔙 رجوع", callback_data="admin")]
         ]
-        await q.edit_message_text("🗑 اختر الصف والمادة:", reply_markup=InlineKeyboardMarkup(keyboard))
+        await q.edit_message_text("اختر الصف والمادة:", reply_markup=InlineKeyboardMarkup(keyboard))
+        return
 
-    elif data.startswith("dellist_") and user_id == ADMIN_ID:
+    if data.startswith("del_") and user_id == ADMIN_ID:
         parts = data.split("_")
         grade = parts[1]
         subject = parts[2]
         subject_lessons = lessons.get(grade, {}).get(subject, {})
+        keyboard = []
+        for name in subject_lessons:
+            keyboard.append([InlineKeyboardButton(f"🗑 {name}", callback_data=f"delete_{grade}_{subject}_{name}")])
+        keyboard.append([InlineKeyboardButton("🔙 رجوع", callback_data="admin")])
         if not subject_lessons:
-            keyboard = [[InlineKeyboardButton("🔙 رجوع للإدارة", callback_data="admin")]]
-            await q.edit_message_text(f"📭 لا يوجد دروس في {grade} - {subject}", reply_markup=InlineKeyboardMarkup(keyboard))
+            await q.edit_message_text(f"لا يوجد دروس في {grade} - {subject}", reply_markup=InlineKeyboardMarkup(keyboard))
         else:
-            keyboard = []
-            for name in subject_lessons:
-                keyboard.append([InlineKeyboardButton(f"🗑 {name}", callback_data=f"delete_{grade}_{subject}_{name}")])
-            keyboard.append([InlineKeyboardButton("🔙 رجوع للإدارة", callback_data="admin")])
-            await q.edit_message_text(f"🗑 اختر درساً للحذف:\n{grade} - {subject}", reply_markup=InlineKeyboardMarkup(keyboard))
+            await q.edit_message_text(f"اختر درساً للحذف:\n{grade} - {subject}", reply_markup=InlineKeyboardMarkup(keyboard))
+        return
 
-    elif data.startswith("delete_") and user_id == ADMIN_ID:
+    if data.startswith("delete_") and user_id == ADMIN_ID:
         parts = data.split("_", 3)
         grade = parts[1]
         subject = parts[2]
@@ -161,9 +156,10 @@ async def callback(update, context):
             del lessons[grade][subject][name]
             save_lessons()
             await q.edit_message_text(f"✅ تم حذف: {name}")
+        return
 
-    # ==================== إحصائيات ====================
-    elif data == "stats" and user_id == ADMIN_ID:
+    # ========== إحصائيات ==========
+    if data == "stats" and user_id == ADMIN_ID:
         t1 = len(lessons["التاسع"]["فيزياء"])
         t2 = len(lessons["التاسع"]["كيمياء"])
         b1 = len(lessons["البكالوريا"]["فيزياء"])
@@ -171,6 +167,7 @@ async def callback(update, context):
         total = t1 + t2 + b1 + b2
         text = f"📊 الإحصائيات\n\nالتاسع - فيزياء: {t1}\nالتاسع - كيمياء: {t2}\nالبكالوريا - فيزياء: {b1}\nالبكالوريا - كيمياء: {b2}\n\nالمجموع: {total}"
         await q.edit_message_text(text)
+        return
 
 async def handle_file(update, context):
     if context.user_data.get("waiting_file"):
@@ -205,5 +202,5 @@ app.add_handler(CallbackQueryHandler(callback))
 app.add_handler(MessageHandler(filters.Document.ALL, handle_file))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
 
-print("✅ البوت يعمل بنجاح")
+print("✅ البوت يعمل")
 app.run_polling()
