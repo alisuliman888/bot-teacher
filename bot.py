@@ -38,22 +38,29 @@ async def callback(update, context):
     data = q.data
     user_id = update.effective_user.id
 
+    # ==================== عرض المواد حسب الصف ====================
+    if data == "back_to_start":
+        await start(update, context)
+        return
+
     if data.startswith("grade_"):
         grade = data[6:]
         keyboard = [
             [InlineKeyboardButton("📘 فيزياء", callback_data=f"sub_{grade}_فيزياء")],
             [InlineKeyboardButton("🧪 كيمياء", callback_data=f"sub_{grade}_كيمياء")],
-            [InlineKeyboardButton("🔙 رجوع", callback_data="back_to_start")]
+            [InlineKeyboardButton("🔙 رجوع", callback_data="back_to_start")],
         ]
         await q.edit_message_text(f"🎓 {grade}\nاختر المادة:", reply_markup=InlineKeyboardMarkup(keyboard))
 
+    # ==================== عرض دروس المادة ====================
     elif data.startswith("sub_"):
         parts = data.split("_")
         grade = parts[1]
         subject = parts[2]
         subject_lessons = lessons.get(grade, {}).get(subject, {})
         if not subject_lessons:
-            await q.edit_message_text(f"📭 لا يوجد دروس في {subject} - {grade}")
+            keyboard = [[InlineKeyboardButton("🔙 رجوع", callback_data=f"grade_{grade}")]]
+            await q.edit_message_text(f"📭 لا يوجد دروس في {subject} - {grade}", reply_markup=InlineKeyboardMarkup(keyboard))
         else:
             keyboard = []
             for name in subject_lessons:
@@ -61,6 +68,7 @@ async def callback(update, context):
             keyboard.append([InlineKeyboardButton("🔙 رجوع", callback_data=f"grade_{grade}")])
             await q.edit_message_text(f"📚 {subject} - {grade}\nاختر الدرس:", reply_markup=InlineKeyboardMarkup(keyboard))
 
+    # ==================== عرض ملف PDF ====================
     elif data.startswith("view_"):
         parts = data.split("_", 3)
         grade = parts[1]
@@ -73,25 +81,24 @@ async def callback(update, context):
         else:
             await q.edit_message_text("❌ الملف غير موجود")
 
-    elif data == "back_to_start":
-        await start(update, context)
-
+    # ==================== لوحة الإدارة ====================
     elif data == "admin" and user_id == ADMIN_ID:
         keyboard = [
             [InlineKeyboardButton("➕ إضافة درس", callback_data="add")],
             [InlineKeyboardButton("🗑 حذف درس", callback_data="del")],
             [InlineKeyboardButton("📊 إحصائيات", callback_data="stats")],
-            [InlineKeyboardButton("🔙 رجوع", callback_data="back_to_start")]
+            [InlineKeyboardButton("🔙 رجوع", callback_data="back_to_start")],
         ]
         await q.edit_message_text("⚙️ لوحة التحكم", reply_markup=InlineKeyboardMarkup(keyboard))
 
+    # ==================== إضافة درس ====================
     elif data == "add" and user_id == ADMIN_ID:
         keyboard = [
             [InlineKeyboardButton("التاسع - فيزياء", callback_data="addplace_التاسع_فيزياء")],
             [InlineKeyboardButton("التاسع - كيمياء", callback_data="addplace_التاسع_كيمياء")],
             [InlineKeyboardButton("البكالوريا - فيزياء", callback_data="addplace_البكالوريا_فيزياء")],
             [InlineKeyboardButton("البكالوريا - كيمياء", callback_data="addplace_البكالوريا_كيمياء")],
-            [InlineKeyboardButton("🔙 رجوع", callback_data="admin")]
+            [InlineKeyboardButton("🔙 رجوع", callback_data="admin")],
         ]
         await q.edit_message_text("📤 اختر مكان حفظ الدرس:", reply_markup=InlineKeyboardMarkup(keyboard))
 
@@ -104,13 +111,14 @@ async def callback(update, context):
         await q.edit_message_text(f"📤 أرسل ملف PDF لـ:\n{grade} - {subject}")
         context.user_data["waiting_file"] = True
 
+    # ==================== حذف درس ====================
     elif data == "del" and user_id == ADMIN_ID:
         keyboard = [
             [InlineKeyboardButton("التاسع - فيزياء", callback_data="dellist_التاسع_فيزياء")],
             [InlineKeyboardButton("التاسع - كيمياء", callback_data="dellist_التاسع_كيمياء")],
             [InlineKeyboardButton("البكالوريا - فيزياء", callback_data="dellist_البكالوريا_فيزياء")],
             [InlineKeyboardButton("البكالوريا - كيمياء", callback_data="dellist_البكالوريا_كيمياء")],
-            [InlineKeyboardButton("🔙 رجوع", callback_data="admin")]
+            [InlineKeyboardButton("🔙 رجوع", callback_data="admin")],
         ]
         await q.edit_message_text("🗑 اختر الصف والمادة:", reply_markup=InlineKeyboardMarkup(keyboard))
 
@@ -120,7 +128,8 @@ async def callback(update, context):
         subject = parts[2]
         subject_lessons = lessons.get(grade, {}).get(subject, {})
         if not subject_lessons:
-            await q.edit_message_text(f"📭 لا يوجد دروس في {grade} - {subject}")
+            keyboard = [[InlineKeyboardButton("🔙 رجوع", callback_data="admin")]]
+            await q.edit_message_text(f"📭 لا يوجد دروس في {grade} - {subject}", reply_markup=InlineKeyboardMarkup(keyboard))
         else:
             keyboard = []
             for name in subject_lessons:
@@ -141,6 +150,7 @@ async def callback(update, context):
             save_lessons()
             await q.edit_message_text(f"✅ تم حذف: {name}")
 
+    # ==================== إحصائيات ====================
     elif data == "stats" and user_id == ADMIN_ID:
         t1 = len(lessons["التاسع"]["فيزياء"])
         t2 = len(lessons["التاسع"]["كيمياء"])
@@ -150,6 +160,7 @@ async def callback(update, context):
         text = f"📊 الإحصائيات\n\nالتاسع - فيزياء: {t1}\nالتاسع - كيمياء: {t2}\nالبكالوريا - فيزياء: {b1}\nالبكالوريا - كيمياء: {b2}\n\nالمجموع: {total}"
         await q.edit_message_text(text)
 
+# ==================== استقبال الملفات ====================
 async def handle_file(update, context):
     if context.user_data.get("waiting_file"):
         doc = update.message.document
@@ -177,11 +188,12 @@ async def handle_text(update, context):
             await update.message.reply_text(f"✅ تم حفظ الدرس: {name}\n📚 {subject} - {grade}")
             context.user_data.clear()
 
+# ==================== تشغيل البوت ====================
 app = Application.builder().token(TOKEN).build()
 app.add_handler(CommandHandler("start", start))
 app.add_handler(CallbackQueryHandler(callback))
 app.add_handler(MessageHandler(filters.Document.ALL, handle_file))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
 
-print("✅ البوت يعمل بنجاح")
+print("✅ البوت يعمل بنجاح مع زر رجوع")
 app.run_polling()
